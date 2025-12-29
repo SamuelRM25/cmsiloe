@@ -4,10 +4,10 @@
 class Database {
     private $host = "bxalmyxvqzxusgp20tip-mysql.services.clever-cloud.com";
     private $db_name = "bxalmyxvqzxusgp20tip";
-    private $username = "umlwwpqnkxk8dodh"; // Tus credenciales reales
-    private $password = "hZ2jWQMb8147YkMr8fE"; // Tus credenciales reales
+    private $username = "umlwwpqnkxk8dodh";
+    private $password = "hZ2jWQMb8147YkMr8fE";
     private $port = "21400";
-    private $conn = null; // Inicializar a null
+    private $conn = null;
 
     public function getConnection() {
         try {
