@@ -2,11 +2,11 @@
 // config/database.php
 
 class Database {
-    private $host = "bzlwnzdfwf8n1tct7ebf-mysql.services.clever-cloud.com";
-    private $db_name = "bzlwnzdfwf8n1tct7ebf";
-    private $username = "uiewshfkax9viaaw"; // Tus credenciales reales
-    private $password = "ecxBIcUMIBgaN3SX0h6X"; // Tus credenciales reales
-    private $port = "3306";
+    private $host = "bxalmyxvqzxusgp20tip-mysql.services.clever-cloud.com";
+    private $db_name = "bxalmyxvqzxusgp20tip";
+    private $username = "umlwwpqnkxk8dodh"; // Tus credenciales reales
+    private $password = "hZ2jWQMb8147YkMr8fE"; // Tus credenciales reales
+    private $port = "21400";
     private $conn = null; // Inicializar a null
 
     public function getConnection() {
