@@ -295,37 +295,73 @@ try {
                         <div class="medical-timeline">
                             <?php foreach ($medical_records as $index => $record): ?>
                                 <div class="timeline-item">
-                                    <div class="record-card">
-                                        <div class="record-header" 
+                                    <div class="card-header bg-white border-0 p-0 d-flex align-items-center">
+                                        <!-- Main Clickable Area (Trigger) -->
+                                        <div class="flex-grow-1 py-3 px-4 cursor-pointer collapse-trigger" 
+                                             role="button"
                                              data-bs-toggle="collapse" 
                                              data-bs-target="#collapseRecord<?php echo $record['id_historial']; ?>" 
                                              aria-expanded="<?php echo $index === 0 ? 'true' : 'false'; ?>">
-                                            <div class="d-flex align-items-center">
-                                                <div class="me-3 p-2 rounded-3 bg-white border shadow-sm">
-                                                    <span class="fw-bold text-primary d-block text-xs text-uppercase opacity-75">Consulta</span>
-                                                    <span class="fw-bold fs-6 text-dark"><?php echo date('d/m/Y', strtotime($record['fecha_consulta'])); ?></span>
+                                            
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="me-3 p-2 rounded-3 bg-white border shadow-sm item-icon">
+                                                        <span class="fw-bold text-primary d-block text-xs text-uppercase opacity-75">Consulta</span>
+                                                        <span class="fw-bold fs-6 text-dark"><?php echo date('d/m/Y', strtotime($record['fecha_consulta'])); ?></span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="text-xs text-muted d-block text-uppercase letter-spacing-1">Médico Responsable</span>
+                                                        <span class="fw-bold text-slate-800">Dr(a). <?php echo htmlspecialchars($record['medico_responsable']); ?></span>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <span class="text-xs text-muted d-block text-uppercase letter-spacing-1">Médico Responsable</span>
-                                                    <span class="fw-bold text-slate-800">Dr(a). <?php echo htmlspecialchars($record['medico_responsable']); ?></span>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="dropdown">
-                                                    <button class="btn btn-icon btn-sm btn-light rounded-circle shadow-sm" data-bs-toggle="dropdown" onclick="event.stopPropagation()"><i class="bi bi-three-dots-vertical"></i></button>
-                                                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
-                                                        <li><a class="dropdown-item py-2" href="#" onclick="editMedicalRecord(<?php echo $record['id_historial']; ?>); event.stopPropagation();"><i class="bi bi-pencil me-3 text-primary"></i>Editar</a></li>
-                                                        <?php if (!empty($record['receta_medica'])): ?>
-                                                            <li><a class="dropdown-item py-2" href="#" onclick="printPrescription(<?php echo $record['id_historial']; ?>); event.stopPropagation();"><i class="bi bi-printer me-3 text-success"></i>Imprimir Receta</a></li>
-                                                        <?php endif; ?>
-                                                        <li><hr class="dropdown-divider"></li>
-                                                        <li><a class="dropdown-item py-2 text-danger" href="#" onclick="deleteMedicalRecord(<?php echo $record['id_historial']; ?>); event.stopPropagation();"><i class="bi bi-trash me-3"></i>Eliminar</a></li>
-                                                    </ul>
-                                                </div>
-                                                <i class="bi bi-chevron-down transition-transform collapse-icon <?php echo $index === 0 ? 'rotate-180' : ''; ?>"></i>
+                                                
+                                                <i class="bi bi-chevron-down transition-transform collapse-icon <?php echo $index === 0 ? 'rotate-180' : ''; ?> text-muted"></i>
                                             </div>
                                         </div>
-                                        <div id="collapseRecord<?php echo $record['id_historial']; ?>" class="collapse <?php echo $index === 0 ? 'show' : ''; ?>">
+
+                                        <!-- Actions Area (Isolated from Trigger) -->
+                                        <div class="pe-4 border-start ps-3 py-2">
+                                            <div class="dropdown">
+                                                <button class="btn btn-outline-secondary btn-sm rounded-circle d-flex align-items-center justify-content-center shadow-sm hover-scale transition-all" 
+                                                        type="button" 
+                                                        style="width: 32px; height: 32px;"
+                                                        data-bs-toggle="dropdown" 
+                                                        aria-expanded="false"
+                                                        title="Opciones">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2">
+                                                    <li>
+                                                        <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="editMedicalRecord(<?php echo $record['id_historial']; ?>)">
+                                                            <div class="icon-circle bg-primary bg-opacity-10 text-primary me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                                                <i class="bi bi-pencil-fill text-xs"></i>
+                                                            </div>
+                                                            <span class="fw-medium">Editar Consulta</span>
+                                                        </a>
+                                                    </li>
+                                                    <?php if (!empty($record['receta_medica'])): ?>
+                                                    <li>
+                                                        <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="printPrescription(<?php echo $record['id_historial']; ?>)">
+                                                            <div class="icon-circle bg-success bg-opacity-10 text-success me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                                                <i class="bi bi-printer-fill text-xs"></i>
+                                                            </div>
+                                                            <span class="fw-medium">Imprimir Receta</span>
+                                                        </a>
+                                                    </li>
+                                                    <?php endif; ?>
+                                                    <li><hr class="dropdown-divider my-2"></li>
+                                                    <li>
+                                                        <a class="dropdown-item py-2 d-flex align-items-center text-danger" href="javascript:void(0)" onclick="deleteMedicalRecord(<?php echo $record['id_historial']; ?>)">
+                                                            <div class="icon-circle bg-danger bg-opacity-10 text-danger me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                                                                <i class="bi bi-trash-fill text-xs"></i>
+                                                            </div>
+                                                            <span class="fw-medium">Eliminar Registro</span>
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>    <div id="collapseRecord<?php echo $record['id_historial']; ?>" class="collapse <?php echo $index === 0 ? 'show' : ''; ?>">
                                             <div class="card-body p-4">
                                             <div class="row g-4">
                                                 <div class="col-md-7">
@@ -613,13 +649,13 @@ echo nl2br(htmlspecialchars($clean_receta));
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link py-2" id="edit-plan-tab" data-bs-toggle="tab" data-bs-target="#edit-tab-plan" type="button" role="tab">
-                                <i class="bi bi-file-earmark-medical me-1"></i> Plan
+                            <button class="nav-link py-2" id="edit-antecedentes-tab" data-bs-toggle="tab" data-bs-target="#edit-tab-antecedentes" type="button" role="tab">
+                                <i class="bi bi-clock-history me-1"></i> Antecedentes
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link py-2" id="edit-antecedentes-tab" data-bs-toggle="tab" data-bs-target="#edit-tab-antecedentes" type="button" role="tab">
-                                <i class="bi bi-clock-history me-1"></i> Antecedentes
+                            <button class="nav-link py-2" id="edit-plan-tab" data-bs-toggle="tab" data-bs-target="#edit-tab-plan" type="button" role="tab">
+                                <i class="bi bi-file-earmark-medical me-1"></i> Plan
                             </button>
                         </li>
                     </ul>
@@ -793,7 +829,7 @@ function editMedicalRecord(id) {
                 }
                 
                 document.getElementById('edit_medico_responsable').value = record.medico_responsable;
-                document.getElementById('edit_especialidad_medico').value = record.especialidad_medico || '';
+                // document.getElementById('edit_especialidad_medico').value = record.especialidad_medico || '';
                 
                 const modal = new bootstrap.Modal(document.getElementById('editMedicalRecordModal'));
                 modal.show();
