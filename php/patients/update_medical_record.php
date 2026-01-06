@@ -62,7 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bindParam(':hora_proxima_cita', $hora_proxima_cita);
         
         $stmt->bindParam(':medico_responsable', $_POST['medico_responsable']);
-        $stmt->bindParam(':especialidad_medico', $_POST['especialidad_medico']);
+        $especialidad_medico = $_POST['especialidad_medico'] ?? null;
+        $stmt->bindParam(':especialidad_medico', $especialidad_medico);
         
         // Execute the statement
         if ($stmt->execute()) {
