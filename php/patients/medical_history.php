@@ -695,7 +695,7 @@ echo nl2br(htmlspecialchars($clean_receta));
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label text-xs fw-semibold text-muted mb-1">Tratamiento</label>
-                                    <textarea class="form-control form-control-sm border-0 bg-light shadow-sm" name="treatment" id="edit_tratamiento" rows="5" required></textarea>
+                                    <textarea class="form-control form-control-sm border-0 bg-light shadow-sm" name="tratamiento" id="edit_tratamiento" rows="5" required></textarea>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label text-xs fw-semibold text-muted mb-1">Receta Médica</label>
