@@ -17,21 +17,10 @@ try {
     include_once '../../includes/header.php';
 
     // Fetch patients
-    if ($_SESSION['tipoUsuario'] === 'doc') {
-        // Patients who have an appointment with this doctor
-        $stmt = $conn->prepare("
-            SELECT DISTINCT p.* 
-            FROM pacientes p
-            JOIN citas c ON (p.nombre = c.nombre_pac AND p.apellido = c.apellido_pac)
-            WHERE c.id_doctor = ?
-            ORDER BY p.apellido, p.nombre
-        ");
-        $stmt->execute([$_SESSION['user_id']]);
-    } else {
-        // Admin or other users see all patients
-        $stmt = $conn->prepare("SELECT * FROM pacientes ORDER BY apellido, nombre");
-        $stmt->execute();
-    }
+    // Fetch patients
+    // All users see all patients
+    $stmt = $conn->prepare("SELECT * FROM pacientes ORDER BY apellido, nombre");
+    $stmt->execute();
     $patients = $stmt->fetchAll();
 } catch (Exception $e) {
     die("Error: No se pudo conectar a la base de datos");
