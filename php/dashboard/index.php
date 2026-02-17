@@ -126,6 +126,7 @@ try {
             <?php if ($rol === 'admin' || $rol === 'doc' || $rol === 'user'): ?>
             <li class="nav-item"><a href="../dashboard/index.php" class="nav-link active"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
             <li><a href="../patients/index.php" class="nav-link"><i class="bi bi-people"></i> Pacientes</a></li>
+            <li><a href="../hospitalization/index.php" class="nav-link"><i class="bi bi-hospital"></i> Hospitalización</a></li>
             <?php endif; ?>
             <?php if ($rol === 'admin' || $rol === 'user'): ?>
             <li><a href="../appointments/index.php" class="nav-link"><i class="bi bi-calendar"></i> Citas</a></li>
