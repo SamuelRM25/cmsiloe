@@ -21,33 +21,33 @@ try {
             throw new Exception("Campo requerido: $field");
         }
     }
-    
+
     $id_encamamiento = intval($_POST['id_encamamiento']);
     $diagnostico_egreso = trim($_POST['diagnostico_egreso']);
     $notas_alta = isset($_POST['notas_alta']) ? trim($_POST['notas_alta']) : null;
-    
+
     $database = new Database();
     $conn = $database->getConnection();
-    
+
     // Start transaction
     $conn->beginTransaction();
-    
+
     // Update encamamiento
     $stmt = $conn->prepare("
         UPDATE encamamientos SET 
-            estado = 'Alta_Administrativa',
+            estado = 'Alta_Medica',
             fecha_alta = NOW(),
             diagnostico_egreso = ?,
             notas_alta = ?
         WHERE id_encamamiento = ?
     ");
-    
+
     $stmt->execute([
         $diagnostico_egreso,
         $notas_alta,
         $id_encamamiento
     ]);
-    
+
     // Trigger will automatically set bed status to 'Disponible'
     // Verify it worked
     $stmt_verify = $conn->prepare("
@@ -57,7 +57,7 @@ try {
     ");
     $stmt_verify->execute([$id_encamamiento]);
     $bed = $stmt_verify->fetch(PDO::FETCH_ASSOC);
-    
+
     if ($bed && $bed['estado'] !== 'Disponible') {
         // Trigger didn't fire, update manually
         $stmt_update_bed = $conn->prepare("
@@ -68,14 +68,14 @@ try {
         ");
         $stmt_update_bed->execute([$id_encamamiento]);
     }
-    
+
     $conn->commit();
-    
+
     echo json_encode([
         'status' => 'success',
         'message' => 'Paciente dado de alta correctamente'
     ]);
-    
+
 } catch (Exception $e) {
     if (isset($conn) && $conn->inTransaction()) {
         $conn->rollBack();

@@ -925,16 +925,59 @@ try {
         function printAbono(id) { window.open('print_abono.php?id=' + id, '_blank'); }
 
         function procesarAlta() {
-            Swal.fire({ title: 'Dar de Alta', text: '¿Confirmar alta médica?', icon: 'warning', showCancelButton: true })
-                .then(r => {
-                    if (r.isConfirmed) {
-                        // Call api/procesar_alta.php
-                        const fd = new FormData(); fd.append('id_encamamiento', id_encamamiento); fd.append('diagnostico_egreso', 'Alta Médica');
-                        fetch('api/procesar_alta.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
-                            if (d.status === 'success') Swal.fire('Alta procesada', '', 'success').then(() => location.href = 'index.php');
-                        });
+            Swal.fire({
+                title: 'Dar de Alta',
+                html: `
+                    <div class="text-start mb-3">
+                        <label class="form-label fw-bold">Diagnóstico de Egreso</label>
+                        <textarea id="diag_egreso" class="form-control" rows="2" placeholder="Ingrese el diagnóstico final..."></textarea>
+                    </div>
+                    <div class="text-start">
+                        <label class="form-label fw-bold">Notas de Alta (Opcional)</label>
+                        <textarea id="notas_alta" class="form-control" rows="2" placeholder="Recomendaciones, plan, etc..."></textarea>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Confirmar Alta Médica',
+                cancelButtonText: 'Cancelar',
+                width: 600,
+                preConfirm: () => {
+                    const diag = document.getElementById('diag_egreso').value;
+                    const notas = document.getElementById('notas_alta').value;
+                    if (!diag) {
+                        Swal.showValidationMessage('El diagnóstico de egreso es obligatorio');
+                        return false;
                     }
-                });
+                    const fd = new FormData();
+                    fd.append('id_encamamiento', id_encamamiento);
+                    fd.append('diagnostico_egreso', diag);
+                    fd.append('notas_alta', notas);
+
+                    return fetch('api/procesar_alta.php', { method: 'POST', body: fd })
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.status !== 'success') throw new Error(d.message);
+                            return d;
+                        })
+                        .catch(err => Swal.showValidationMessage(`Error: ${err.message}`));
+                }
+            }).then(result => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Alta Procesada',
+                        text: 'El paciente ha sido dado de alta. Se generará el reporte.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        // Open report in new tab
+                        window.open(`print_alta.php?id=${id_encamamiento}`, '_blank');
+                        // Redirect to index
+                        location.href = 'index.php';
+                    });
+                }
+            });
         }
 
         function editCargo(cargo) {
