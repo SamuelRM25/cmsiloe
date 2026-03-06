@@ -1,5 +1,5 @@
 <?php
-// hospitalization/index.php - Dashboard Principal de Encamamiento - Centro Médico Herrera Saenz
+// hospitalization/index.php - Dashboard Principal de Encamamiento - Centro Médico Siloé
 session_start();
 
 // Verificar sesión activa
@@ -125,7 +125,7 @@ try {
     die("Error: " . $e->getMessage());
 }
 
-$page_title = "Gestión de Hospitalización - Centro Médico Herrera Saenz";
+$page_title = "Gestión de Hospitalización - Centro Médico Siloé";
 ?>
 <!DOCTYPE html>
 <html lang="es">

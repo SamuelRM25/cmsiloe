@@ -104,7 +104,7 @@ try {
         // Get all existing room charges dates for this account
         $stmt_existing_nights = $conn->prepare("
             SELECT fecha_aplicacion FROM cargos_hospitalarios 
-            WHERE id_cuenta = ? AND tipo_cargo = 'Habitación'
+            WHERE id_cuenta = ? AND (tipo_cargo = 'Habitación' OR tipo_cargo = 'Habitación (Excluido)')
         ");
         $stmt_existing_nights->execute([$id_cuenta]);
         $existing_nights = $stmt_existing_nights->fetchAll(PDO::FETCH_COLUMN);
@@ -172,7 +172,7 @@ try {
             SELECT ch.*, (ch.cantidad * ch.precio_unitario) as subtotal, u.nombre as registrado_nombre
             FROM cargos_hospitalarios ch
             LEFT JOIN usuarios u ON ch.registrado_por = u.idUsuario
-            WHERE ch.id_cuenta = ?
+            WHERE ch.id_cuenta = ? AND ch.tipo_cargo != 'Habitación (Excluido)'
             ORDER BY ch.fecha_cargo DESC
         ");
         $stmt_cargos->execute([$id_cuenta]);
@@ -735,10 +735,18 @@ try {
                                                     <td class="text-end fw-bold">Q<?php echo number_format($cargo['subtotal'], 2); ?>
                                                     </td>
                                                     <td>
-                                                        <?php if (isset($_SESSION['usuario']) && in_array($_SESSION['usuario'], ['admin', 'epineda', 'ysantos'])): ?>
-                                                            <button class="btn btn-sm py-0 text-primary"
-                                                                onclick='editCargo(<?php echo json_encode($cargo); ?>)'><i
-                                                                    class="bi bi-pencil"></i></button>
+                                                        <?php if (isset($_SESSION['tipoUsuario']) && in_array($_SESSION['tipoUsuario'], ['admin', 'doc'])): ?>
+                                                            <div class="d-flex gap-1">
+                                                                <button class="btn btn-sm py-0 text-primary"
+                                                                    onclick='editCargo(<?php echo json_encode($cargo); ?>)' title="Editar">
+                                                                    <i class="bi bi-pencil"></i>
+                                                                </button>
+                                                                <button class="btn btn-sm py-0 text-danger"
+                                                                    onclick='deleteCargo(<?php echo $cargo["id_cargo"]; ?>)'
+                                                                    title="Eliminar">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </div>
                                                         <?php endif; ?>
                                                     </td>
                                                 </tr>
@@ -792,16 +800,22 @@ try {
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const sidebar = document.getElementById('sidebar');
-        const toggleBtn = document.getElementById('sidebarToggle');
-        toggleBtn.addEventListener('click', () => { sidebar.classList.toggle('active'); });
-
-        // Helper functions
+        // Global Variables and Helper Functions
         const id_encamamiento = <?php echo $id_encamamiento; ?>;
+
         function getLocalISOTime() {
             const now = new Date();
             return new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
         }
+
+        // Sidebar Toggle Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            if (sidebar && toggleBtn) {
+                toggleBtn.addEventListener('click', () => { sidebar.classList.toggle('active'); });
+            }
+        });
 
         // Modals Logic
         function openSignosModal() {
@@ -941,6 +955,37 @@ try {
                     return fetch('api/update_hospital_charge.php', { method: 'POST', body: fd }).then(r => r.json());
                 }
             }).then(r => { if (r.isConfirmed) location.reload(); });
+        }
+
+        function deleteCargo(id) {
+            Swal.fire({
+                title: '¿Eliminar cargo?',
+                text: "Esta acción no se puede deshacer y el total de la cuenta se recalculará.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const fd = new FormData();
+                    fd.append('id_cargo', id);
+                    fetch('api/delete_hospital_charge.php', {
+                        method: 'POST',
+                        body: fd
+                    })
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.status === 'success') {
+                                Swal.fire('Eliminado', d.message, 'success').then(() => location.reload());
+                            } else {
+                                Swal.fire('Error', d.message, 'error');
+                            }
+                        })
+                        .catch(err => Swal.fire('Error', 'No se pudo procesar la solicitud', 'error'));
+                }
+            });
         }
 
         // Dynamic row addition for Cargo Modal needs global availability if inline onclick is used

@@ -1,5 +1,5 @@
 <?php
-// hospitalization/api/update_hospital_charge.php
+// hospitalization/api/delete_hospital_charge.php
 session_start();
 header('Content-Type: application/json');
 
@@ -27,30 +27,17 @@ try {
     $database = new Database();
     $conn = $database->getConnection();
 
-    // Auto-populate session username if missing
-    if (!isset($_SESSION['usuario'])) {
-        $stmt_u = $conn->prepare("SELECT usuario FROM usuarios WHERE idUsuario = ?");
-        $stmt_u->execute([$_SESSION['user_id']]);
-        $u_row = $stmt_u->fetch(PDO::FETCH_ASSOC);
-        if ($u_row) {
-            $_SESSION['usuario'] = $u_row['usuario'];
-        }
-    }
-
     $id_cargo = isset($_POST['id_cargo']) ? intval($_POST['id_cargo']) : 0;
-    $descripcion = isset($_POST['descripcion']) ? trim($_POST['descripcion']) : '';
-    $cantidad = isset($_POST['cantidad']) ? floatval($_POST['cantidad']) : 0;
-    $precio_unitario = isset($_POST['precio_unitario']) ? floatval($_POST['precio_unitario']) : 0;
 
-    if ($id_cargo <= 0 || empty($descripcion) || $cantidad <= 0 || $precio_unitario < 0) {
-        throw new Exception('Datos inválidos o incompletos');
+    if ($id_cargo <= 0) {
+        throw new Exception('ID de cargo inválido');
     }
 
     // Start transaction
     $conn->beginTransaction();
 
-    // 1. Get account ID before update
-    $stmt_get_acc = $conn->prepare("SELECT id_cuenta FROM cargos_hospitalarios WHERE id_cargo = ?");
+    // 1. Get charge details before deletion
+    $stmt_get_acc = $conn->prepare("SELECT id_cuenta, tipo_cargo FROM cargos_hospitalarios WHERE id_cargo = ?");
     $stmt_get_acc->execute([$id_cargo]);
     $cargo_info = $stmt_get_acc->fetch(PDO::FETCH_ASSOC);
 
@@ -59,18 +46,24 @@ try {
     }
 
     $id_cuenta = $cargo_info['id_cuenta'];
+    $tipo_cargo = $cargo_info['tipo_cargo'];
 
-    // 2. Update the charge (subtotal is generated automatically)
-    $stmt_update = $conn->prepare("
-        UPDATE cargos_hospitalarios 
-        SET descripcion = ?, cantidad = ?, precio_unitario = ?
-        WHERE id_cargo = ?
-    ");
-    $stmt_update->execute([$descripcion, $cantidad, $precio_unitario, $id_cargo]);
+    // 2. Perform deletion or soft-delete
+    if ($tipo_cargo === 'Habitación') {
+        // Soft-delete for Room charges to prevent auto-reinsertion by detalle_encamamiento.php
+        $stmt_soft_delete = $conn->prepare("
+            UPDATE cargos_hospitalarios 
+            SET tipo_cargo = 'Habitación (Excluido)', cantidad = 0, precio_unitario = 0 
+            WHERE id_cargo = ?
+        ");
+        $stmt_soft_delete->execute([$id_cargo]);
+    } else {
+        // Standard hard-delete for other types
+        $stmt_delete = $conn->prepare("DELETE FROM cargos_hospitalarios WHERE id_cargo = ?");
+        $stmt_delete->execute([$id_cargo]);
+    }
 
-    // 3. Recalculate account totals (copied logic from detalle_encamamiento.php)
     // 3. Recalculate account totals
-    // Calculate total_general from charges
     $stmt_total = $conn->prepare("SELECT COALESCE(SUM(cantidad * precio_unitario), 0) FROM cargos_hospitalarios WHERE id_cuenta = ?");
     $stmt_total->execute([$id_cuenta]);
     $new_total_general = $stmt_total->fetchColumn();
@@ -89,7 +82,7 @@ try {
 
     echo json_encode([
         'status' => 'success',
-        'message' => 'Cargo actualizado correctamente'
+        'message' => 'Cargo eliminado correctamente'
     ]);
 
 } catch (Exception $e) {
