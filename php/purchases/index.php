@@ -175,7 +175,7 @@ try {
                                 <tbody>
                                     <?php
                                     try {
-                                        $stmt = $conn->query("SELECT * FROM purchase_headers ORDER BY purchase_date DESC LIMIT 50");
+                                        $stmt = $conn->query("SELECT * FROM purchase_headers ORDER BY purchase_date DESC");
                                         while ($row = $stmt->fetch()) {
                                             $paid = $row['paid_amount'] ?? 0;
                                             $balance = $row['total_amount'] - $paid;
@@ -246,7 +246,7 @@ try {
                                 <tbody>
                                     <?php
                                     try {
-                                        $stmtOld = $conn->query("SELECT * FROM compras ORDER BY fecha_compra DESC LIMIT 100");
+                                        $stmtOld = $conn->query("SELECT * FROM compras ORDER BY fecha_compra DESC");
                                         while ($row = $stmtOld->fetch()) {
                                             $statusClass = 'secondary';
                                             if ($row['estado_compra'] == 'Completo') $statusClass = 'success';
