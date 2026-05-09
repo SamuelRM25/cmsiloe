@@ -6,7 +6,6 @@ require_once '../../includes/functions.php';
 // Establecer la zona horaria correcta
 date_default_timezone_set('America/Guatemala');
 
-
 verify_session();
 
 try {
@@ -16,12 +15,33 @@ try {
     $page_title = "Gestión de Pacientes - Clínica";
     include_once '../../includes/header.php';
 
-    // Fetch patients
-    // Fetch patients
-    // All users see all patients
-    $stmt = $conn->prepare("SELECT * FROM pacientes ORDER BY apellido, nombre");
-    $stmt->execute();
+    // Pagination and Search Logic
+    $search = isset($_GET['search']) ? sanitize_input($_GET['search']) : '';
+    $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+    $per_page = 20;
+    $offset = ($page - 1) * $per_page;
+
+    // Build query with search if provided
+    $params = [];
+    $where_clause = "";
+    if (!empty($search)) {
+        $where_clause = " WHERE nombre LIKE ? OR apellido LIKE ? OR telefono LIKE ? OR correo LIKE ? OR id_paciente LIKE ?";
+        $search_param = "%$search%";
+        $params = [$search_param, $search_param, $search_param, $search_param, $search_param];
+    }
+
+    // Count total for pagination
+    $count_stmt = $conn->prepare("SELECT COUNT(*) FROM pacientes $where_clause");
+    $count_stmt->execute($params);
+    $total_patients = $count_stmt->fetchColumn();
+    $total_pages = ceil($total_patients / $per_page);
+
+    // Fetch patients with limit
+    $query = "SELECT * FROM pacientes $where_clause ORDER BY apellido, nombre LIMIT $per_page OFFSET $offset";
+    $stmt = $conn->prepare($query);
+    $stmt->execute($params);
     $patients = $stmt->fetchAll();
+
 } catch (Exception $e) {
     die("Error: No se pudo conectar a la base de datos");
 }
@@ -29,7 +49,6 @@ try {
 
 <!-- Inject Dashboard Custom Styles -->
 <link rel="stylesheet" href="../../assets/css/dashboard-reengineered.css">
-
 
 <div class="dashboard-wrapper sidebar-collapsed">
     <!-- Mobile Overlay -->
@@ -41,54 +60,7 @@ try {
     </button>
 
     <!-- Sidebar Reengineered -->
-    <div class="sidebar-glass p-3 d-flex flex-column">
-        <div class="brand-section d-flex justify-content-between align-items-center mb-4">
-            <div class="d-flex align-items-center text-decoration-none">
-                <img src="../../assets/img/siloe.png" alt="Logo" style="height: 40px; margin-right: 15px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));"/>
-            </div>
-            <button class="btn btn-sm btn-light text-primary rounded-circle shadow-sm d-none d-md-flex align-items-center justify-content-center" id="sidebarCloseBtn" style="width: 32px; height: 32px;">
-                <i class="bi bi-chevron-left"></i>
-            </button>
-        </div>
-        
-
-        <ul class="nav nav-pills flex-column mb-auto">
-            <?php $rol = $_SESSION['tipoUsuario'] ?? $_SESSION['rol'] ?? ''; ?>
-            <?php if ($rol === 'admin' || $rol === 'doc' || $rol === 'user'): ?>
-            <li class="nav-item"><a href="../dashboard/index.php" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-            <li><a href="../patients/index.php" class="nav-link active"><i class="bi bi-people"></i> Pacientes</a></li>
-            <?php endif; ?>
-            <?php if ($rol === 'admin' || $rol === 'user'): ?>
-            <li><a href="../appointments/index.php" class="nav-link"><i class="bi bi-calendar"></i> Citas</a></li>
-            <li><a href="../minor_procedures/index.php" class="nav-link"><i class="bi bi-bandaid"></i> Proc. Menores</a></li>
-            <li><a href="../examinations/index.php" class="nav-link"><i class="bi bi-file-earmark-medical"></i> Exámenes</a></li>
-            <li><a href="../dispensary/index.php" class="nav-link"><i class="bi bi-cart4"></i> Dispensario</a></li>
-            <li><a href="../inventory/index.php" class="nav-link"><i class="bi bi-box-seam"></i> Inventario</a></li>
-            <?php endif; ?>
-            <?php if ($rol === 'admin'): ?>
-            <li><a href="../purchases/index.php" class="nav-link"><i class="bi bi-cart-plus"></i> Compras</a></li>
-            <li><a href="../sales/index.php" class="nav-link"><i class="bi bi-receipt"></i> Ventas</a></li>
-            <li><a href="../reports/index.php" class="nav-link"><i class="bi bi-bar-chart-line"></i> Reportes</a></li>
-            <?php endif; ?>
-            <?php if ($rol === 'admin' || $rol === 'user'): ?>
-            <li><a href="../billing/index.php" class="nav-link"><i class="bi bi-cash-coin"></i> Cobros</a></li>
-            <?php endif; ?>
-        </ul>
-        
-        <div class="mt-auto">
-            <div class="dropdown">
-                <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle p-2 rounded hover-effect" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false" style="color: var(--text-color);">
-                    <div class="avatar-circle me-2 bg-primary text-white d-flex align-items-center justify-content-center rounded-circle" style="width: 32px; height: 32px;">
-                        <?php echo strtoupper(substr($_SESSION['nombre'], 0, 1)); ?>
-                    </div>
-                    <strong><?php echo htmlspecialchars($_SESSION['nombre']); ?></strong>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="dropdownUser1">
-                    <li><a class="dropdown-item" href="../auth/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión</a></li>
-                </ul>
-            </div>
-        </div>
-    </div>
+    <?php include_once '../../includes/sidebar.php'; ?>
 
     <!-- Main Content Reengineered -->
     <div class="main-content-glass">
@@ -97,7 +69,7 @@ try {
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h2 class="fw-bold text-dark mb-1">Gestión de Pacientes</h2>
-                    <p class="text-muted"><i class="bi bi-people me-1"></i> <?php echo count($patients); ?> pacientes registrados</p>
+                    <p class="text-muted"><i class="bi bi-people me-1"></i> <?php echo $total_patients; ?> pacientes encontrados</p>
                 </div>
                 <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#newPatientModal">
                     <i class="bi bi-person-plus-fill me-2"></i>Nuevo Paciente
@@ -107,12 +79,19 @@ try {
             <!-- Search Section -->
             <div class="card-glass mb-4">
                 <div class="card-body p-3">
-                    <div class="input-group input-group-lg border-0 shadow-none">
-                        <span class="input-group-text bg-transparent border-0 text-primary">
-                            <i class="bi bi-search fs-4"></i>
-                        </span>
-                        <input type="text" id="searchInput" class="form-control bg-transparent border-0 ps-2" placeholder="Buscar por nombre, apellido, teléfono o correo..." style="box-shadow: none;">
-                    </div>
+                    <form action="index.php" method="GET" id="searchForm">
+                        <div class="input-group input-group-lg border-0 shadow-none">
+                            <span class="input-group-text bg-transparent border-0 text-primary">
+                                <i class="bi bi-search fs-4"></i>
+                            </span>
+                            <input type="text" name="search" id="searchInput" class="form-control bg-transparent border-0 ps-2" placeholder="Buscar por nombre, apellido, teléfono o ID..." value="<?php echo htmlspecialchars($search); ?>" style="box-shadow: none;">
+                            <?php if (!empty($search)): ?>
+                                <a href="index.php" class="btn btn-link text-muted d-flex align-items-center">
+                                    <i class="bi bi-x-circle fs-5"></i>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -174,7 +153,7 @@ try {
                                 <tr>
                                     <td colspan="4" class="text-center py-5 text-muted">
                                         <i class="bi bi-people fs-1 d-block mb-3 opacity-25"></i>
-                                        No se encontraron pacientes registrados.
+                                        No se encontraron pacientes que coincidan con la búsqueda.
                                     </td>
                                 </tr>
                                 <?php endif; ?>
@@ -183,9 +162,40 @@ try {
                     </div>
                 </div>
             </div>
+
+            <!-- Pagination Section -->
+            <?php if ($total_pages > 1): ?>
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                        <a class="page-link rounded-pill px-3 me-2 border-0 shadow-sm" href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($search); ?>" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    
+                    <?php
+                    $start_page = max(1, $page - 2);
+                    $end_page = min($total_pages, $page + 2);
+                    
+                    for ($i = $start_page; $i <= $end_page; $i++):
+                    ?>
+                    <li class="page-item <?php echo $page == $i ? 'active' : ''; ?>">
+                        <a class="page-link rounded-circle mx-1 border-0 shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>"><?php echo $i; ?></a>
+                    </li>
+                    <?php endfor; ?>
+
+                    <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+                        <a class="page-link rounded-pill px-3 ms-2 border-0 shadow-sm" href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($search); ?>" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <?php endif; ?>
         </div>
     </div>
 </div>
+
 
 <!-- New Patient Modal -->
 <div class="modal fade" id="newPatientModal" tabindex="-1">
@@ -251,52 +261,26 @@ try {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Real-time search with visual feedback
+    // Automatic submission for search with debounce
     const searchInput = document.getElementById('searchInput');
-    const tableBody = document.querySelector('#patientsTable tbody');
-    
-    searchInput.addEventListener('input', function() {
-        const searchText = this.value.toLowerCase().trim();
-        const rows = tableBody.querySelectorAll('tr.hover-row');
-        let hasResults = false;
-        
-        rows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            if (text.includes(searchText)) {
-                row.style.display = '';
-                hasResults = true;
-            } else {
-                row.style.display = 'none';
-            }
-        });
+    const searchForm = document.getElementById('searchForm');
+    let debounceTimer;
 
-        // Show "No results" message if needed
-        const noResultsMsg = document.getElementById('noResultsMsg');
-        if (!hasResults && searchText !== '') {
-            if (!noResultsMsg) {
-                const tr = document.createElement('tr');
-                tr.id = 'noResultsMsg';
-                tr.innerHTML = `<td colspan="4" class="text-center py-5 text-muted animate__animated animate__fadeIn">
-                    <i class="bi bi-search fs-1 d-block mb-3 opacity-25"></i>
-                    No se encontraron coincidencias para "${searchText}"
-                </td>`;
-                tableBody.appendChild(tr);
-            } else {
-                noResultsMsg.innerHTML = `<td colspan="4" class="text-center py-5 text-muted">
-                    <i class="bi bi-search fs-1 d-block mb-3 opacity-25"></i>
-                    No se encontraron coincidencias para "${searchText}"
-                </td>`;
-                noResultsMsg.style.display = '';
-            }
-        } else if (noResultsMsg) {
-            noResultsMsg.style.display = 'none';
-        }
+    searchInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            searchForm.submit();
+        }, 800); // 800ms debounce
     });
+
+    // Put cursor at the end of the input on focus
+    searchInput.focus();
+    const val = searchInput.value;
+    searchInput.value = '';
+    searchInput.value = val;
 });
 
 function editPatient(id) {
-    // Implementation for quick edit modal can be added here if needed
-    // For now, redirect to medical history which has edit options
     window.location.href = 'medical_history.php?id=' + id;
 }
 </script>
