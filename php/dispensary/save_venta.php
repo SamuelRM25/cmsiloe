@@ -54,9 +54,13 @@ try {
     
     $id_venta = $conn->lastInsertId();
     
-    // Insert sale details and update inventory
-    $stmt = $conn->prepare("INSERT INTO detalle_ventas (id_venta, id_inventario, cantidad_vendida, precio_unitario) VALUES (?, ?, ?, ?)");
-    $stmt_inv = $conn->prepare("UPDATE inventario SET cantidad_med = cantidad_med - ? WHERE id_inventario = ?");
+    // Capture current stock before deduction (for verification)
+    $stmt_check_before = $conn->prepare("SELECT cantidad_med FROM inventario WHERE id_inventario = ?");
+    $stmt_insert_detalle = $conn->prepare("INSERT INTO detalle_ventas (id_venta, id_inventario, cantidad_vendida, precio_unitario) VALUES (?, ?, ?, ?)");
+    $stmt_deduct = $conn->prepare("UPDATE inventario SET cantidad_med = cantidad_med - ? WHERE id_inventario = ?");
+    $stmt_verify = $conn->prepare("SELECT cantidad_med FROM inventario WHERE id_inventario = ?");
+    
+    $items_verificados = 0;
     
     foreach ($data['items'] as $item) {
         // Validate item data
@@ -64,15 +68,46 @@ try {
             throw new Exception('Datos de item incompletos');
         }
         
-        $stmt->execute([
+        // 1. Snapshot stock before deduction
+        $stmt_check_before->execute([$item['id_inventario']]);
+        $before = $stmt_check_before->fetch(PDO::FETCH_ASSOC);
+        if (!$before) {
+            throw new Exception('Medicamento ID ' . $item['id_inventario'] . ' no encontrado en inventario');
+        }
+        $stock_before = (int)$before['cantidad_med'];
+        $cantidad_vender = (int)$item['cantidad'];
+        
+        // 2. Verify sufficient stock
+        if ($stock_before < $cantidad_vender) {
+            throw new Exception('Stock insuficiente para el item ID ' . $item['id_inventario'] . '. Disponible: ' . $stock_before . ', solicitado: ' . $cantidad_vender);
+        }
+        
+        // 3. Insert sale detail
+        $stmt_insert_detalle->execute([
             $id_venta,
             $item['id_inventario'],
-            $item['cantidad'],
+            $cantidad_vender,
             $item['precio_unitario']
         ]);
         
-        // Update inventory (reduce quantity)
-        $stmt_inv->execute([$item['cantidad'], $item['id_inventario']]);
+        // 4. Deduct from inventory
+        $stmt_deduct->execute([$cantidad_vender, $item['id_inventario']]);
+        
+        // 5. Verify deduction was correct
+        $stmt_verify->execute([$item['id_inventario']]);
+        $after = $stmt_verify->fetch(PDO::FETCH_ASSOC);
+        $stock_after = (int)$after['cantidad_med'];
+        $expected_stock = $stock_before - $cantidad_vender;
+        
+        if ($stock_after !== $expected_stock) {
+            throw new Exception('Discrepancia en inventario al vender ' . $item['id_inventario'] . ': se esperaba stock ' . $expected_stock . ' pero se obtuvo ' . $stock_after);
+        }
+        
+        if ($stock_after < 0) {
+            throw new Exception('Stock negativo detectado para el medicamento ID ' . $item['id_inventario'] . ' después de la venta');
+        }
+        
+        $items_verificados++;
     }
     
     // Clear reservations for this session (since cart is now processed)
@@ -82,7 +117,12 @@ try {
     // Commit transaction
     $conn->commit();
     
-    echo json_encode(['status' => 'success', 'message' => 'Venta registrada correctamente', 'id_venta' => $id_venta]);
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Venta registrada correctamente. Stock verificado.',
+        'id_venta' => $id_venta,
+        'items_verificados' => $items_verificados
+    ]);
     
 } catch (Exception $e) {
     // Rollback transaction on error if connection exists

@@ -358,6 +358,12 @@ try {
                     <a href="generate_report.php?format=csv" class="btn btn-outline-primary">
                         <i class="bi bi-file-earmark-spreadsheet me-2"></i>Exportar CSV
                     </a>
+                    <a href="verificar_ventas.php" class="btn btn-warning text-white">
+                        <i class="bi bi-shield-exclamation me-2"></i>Verificar Ventas
+                    </a>
+                    <button type="button" class="btn btn-info text-white" data-bs-toggle="modal" data-bs-target="#corteInventarioModal">
+                        <i class="bi bi-clipboard-check me-2"></i>Corte de Inventario
+                    </button>
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMedicineModal">
                         <i class="bi bi-plus-circle me-2"></i>Agregar Medicamento
                     </button>
@@ -697,6 +703,78 @@ try {
     </div>
 </div>
 
+<!-- Corte de Inventario Modal -->
+<div class="modal fade" id="corteInventarioModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); color: white; border-radius: 16px 16px 0 0;">
+                <h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i>Corte de Inventario</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div class="alert alert-info d-flex align-items-center mb-4">
+                    <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+                    <div>Ingrese el conteo físico real de cada medicamento. Si la cantidad física difiere del sistema, use <strong>"Equilibrar Todo"</strong> para ajustar el inventario del sistema al valor físico.</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="corteSearchInput" placeholder="Buscar medicamento...">
+                    </div>
+                </div>
+
+                <div style="max-height: 55vh; overflow-y: auto;">
+                    <table class="table table-bordered table-hover mb-0" id="corteTable">
+                        <thead class="table-light sticky-top" style="z-index: 1;">
+                            <tr>
+                                <th style="width: 35%;">Medicamento</th>
+                                <th style="width: 15%;">Presentación</th>
+                                <th style="width: 15%;" class="text-center">Stock Sistema</th>
+                                <th style="width: 15%;" class="text-center">Stock Físico</th>
+                                <th style="width: 20%;" class="text-center">Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody id="corteTableBody">
+                            <?php
+                            $stmt_corte = $conn->query("SELECT id_inventario, nom_medicamento, presentacion_med, cantidad_med FROM inventario ORDER BY nom_medicamento ASC");
+                            while ($item = $stmt_corte->fetch()):
+                            ?>
+                            <tr data-id="<?php echo $item['id_inventario']; ?>">
+                                <td class="fw-medium"><?php echo htmlspecialchars($item['nom_medicamento']); ?></td>
+                                <td><?php echo htmlspecialchars($item['presentacion_med']); ?></td>
+                                <td class="text-center sistema-stock"><?php echo (int)$item['cantidad_med']; ?></td>
+                                <td class="text-center">
+                                    <input type="number" class="form-control form-control-sm text-center fisico-input" 
+                                           value="<?php echo (int)$item['cantidad_med']; ?>" 
+                                           min="0" style="width: 100px; margin: 0 auto;">
+                                </td>
+                                <td class="text-center diferencia-cell">
+                                    <span class="badge bg-success fs-6 diff-badge">0</span>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid rgba(0,0,0,0.1); padding: 1rem 1.5rem;">
+                <div class="d-flex justify-content-between align-items-center w-100">
+                    <div>
+                        <span class="text-muted" id="corteResumen">0 items con diferencia</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-info text-white" id="btnEquilibrar" disabled>
+                            <i class="bi bi-arrow-repeat me-2"></i>Equilibrar Todo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     // Existing script logic needs to be preserved or merged?
     // The existing file doesn't seem to have much script at the bottom, likely in footer or header?
@@ -933,5 +1011,134 @@ document.addEventListener('DOMContentLoaded', function() {
             row.style.transform = 'translateY(0)';
         }, index * 50);
     });
+
+    // ========== CORTE DE INVENTARIO ==========
+    const corteModal = document.getElementById('corteInventarioModal');
+    if (corteModal) {
+        const corteBody = document.getElementById('corteTableBody');
+        const searchInput = document.getElementById('corteSearchInput');
+        const btnEquilibrar = document.getElementById('btnEquilibrar');
+        const resumenSpan = document.getElementById('corteResumen');
+
+        function calcularDiferencia(input) {
+            const tr = input.closest('tr');
+            const sistema = parseInt(tr.querySelector('.sistema-stock').textContent);
+            const fisico = parseInt(input.value) || 0;
+            const diff = fisico - sistema;
+            const badge = tr.querySelector('.diff-badge');
+            badge.textContent = diff === 0 ? '0' : (diff > 0 ? '+' + diff : diff);
+            badge.className = 'badge fs-6 diff-badge';
+            if (diff === 0) {
+                badge.classList.add('bg-success');
+            } else if (diff > 0) {
+                badge.classList.add('bg-warning', 'text-dark');
+            } else {
+                badge.classList.add('bg-danger');
+            }
+            actualizarResumen();
+        }
+
+        function actualizarResumen() {
+            const inputs = corteBody.querySelectorAll('.fisico-input');
+            let diffCount = 0;
+            inputs.forEach(inp => {
+                const tr = inp.closest('tr');
+                const sistema = parseInt(tr.querySelector('.sistema-stock').textContent);
+                const fisico = parseInt(inp.value) || 0;
+                if (sistema !== fisico) diffCount++;
+            });
+            resumenSpan.textContent = diffCount + ' item(s) con diferencia';
+            btnEquilibrar.disabled = diffCount === 0;
+        }
+
+        function getItemsWithDiff() {
+            const inputs = corteBody.querySelectorAll('.fisico-input');
+            const items = [];
+            inputs.forEach(inp => {
+                const tr = inp.closest('tr');
+                const id = parseInt(tr.dataset.id);
+                const fisico = parseInt(inp.value) || 0;
+                items.push({ id_inventario: id, cantidad_fisica: fisico });
+            });
+            return items;
+        }
+
+        // Search within corte table
+        searchInput.addEventListener('input', function() {
+            const term = this.value.toLowerCase().trim();
+            corteBody.querySelectorAll('tr').forEach(tr => {
+                const text = tr.textContent.toLowerCase();
+                tr.style.display = text.includes(term) ? '' : 'none';
+            });
+        });
+
+        // Recalculate on input change
+        corteBody.addEventListener('input', function(e) {
+            if (e.target.classList.contains('fisico-input')) {
+                calcularDiferencia(e.target);
+            }
+        });
+
+        // Equilibrar button
+        btnEquilibrar.addEventListener('click', function() {
+            const items = getItemsWithDiff();
+            const diffCount = items.filter(i => {
+                const tr = corteBody.querySelector(`tr[data-id="${i.id_inventario}"]`);
+                const sistema = parseInt(tr.querySelector('.sistema-stock').textContent);
+                return sistema !== i.cantidad_fisica;
+            }).length;
+
+            Swal.fire({
+                title: '¿Equilibrar inventario?',
+                html: `Se ajustarán <strong>${diffCount}</strong> medicamento(s) para que el stock del sistema coincida con el conteo físico.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#0ea5e9',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: '<i class="bi bi-check-circle me-2"></i>Sí, equilibrar',
+                cancelButtonText: 'Cancelar',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdrop: 'rgba(0,0,0,0.4)'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Procesando...',
+                        text: 'Actualizando inventario',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+
+                    fetch('save_corte.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ items: items })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Corte realizado',
+                                text: data.message,
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire('Error', 'Error de conexión', 'error');
+                    });
+                }
+            });
+        });
+
+        // Reset search when modal opens
+        corteModal.addEventListener('shown.bs.modal', function() {
+            searchInput.value = '';
+            corteBody.querySelectorAll('tr').forEach(tr => tr.style.display = '');
+        });
+    }
 });
 </script>
